@@ -1,4 +1,4 @@
-pythonw server.py
+python server.py
 # This script is used to run the server.py file using Python.
 # It uses the pythonw command to run the script in the background without opening a terminal window.
 # The server.py file is expected to be in the same directory as this script.

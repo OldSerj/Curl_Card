@@ -1,0 +1,32 @@
+.card {
+    border: 1px solid #ccc;
+    padding: 1em;
+    margin-top: 1em;
+    border-radius: 10px;
+    background-color: #f8f8f8;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    max-width: 600px;
+}
+
+.preview-img {
+    max-width: 100%;
+    border-radius: 5px;
+    margin-bottom: 0.5em;
+}
+
+.site-label {
+    display: block;
+    margin-top: 0.5em;
+    font-size: 0.9em;
+    color: #888;
+}
+
+.dark .card {
+    background-color: #222;
+    color: #eee;
+    border-color: #444;
+}
+
+.dark .site-label {
+    color: #aaa;
+}

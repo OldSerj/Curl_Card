@@ -1,6 +1,6 @@
 # curl-card 🌀
 
-A tiny local web server that fetches rich preview data from URLs — kinda like what Discord or Twitter do, but without them stealing your soul or analytics.
+A tiny local web server that fetches rich preview data from URLs — kinda like what Discord or Twitter do, but without them shooting cookies at your face.
 
 ## 🔍 What does it do?
 
@@ -41,10 +41,10 @@ It will open your browser at http://localhost:8000
 4. **Paste a URL into the field and hit Curl.**
 
 ## 🛠 Tech Stack
-- http.server — no Flask/Django bloated nonsense
-- requests — because urllib sucks
-- BeautifulSoup — for parsing HTML the old-school way
-- Static files for the frontend
+- http.server
+- requests
+- BeautifulSoup
+- Static files frontend
 
 ## 📁 File Structure
    ```pgsql

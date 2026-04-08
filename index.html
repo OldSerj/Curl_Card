@@ -2,18 +2,84 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Page Info Curler</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔗 CurlCard - Ultimate Page Reader</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔗</text></svg>">
+    <meta name="description" content="Instantly read any webpage. Full articles, no cookies, client-side only.">
 </head>
 <body>
-    <div class="container">
-        <h1>Get your CurlCard</h1>
-        <input type="text" id="url-input" placeholder="Enter URL here..." />
-        <button id="curl-btn">Curl</button>
-        <button id="toggle-dark">Toggle Dark Mode</button>
+    <div class="app">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>🔗 CurlCard</h1>
+                    <span class="tagline">Ultimate Page Reader</span>
+                </div>
+                <div class="header-actions">
+                    <button id="toggle-dark" title="Toggle Dark Mode">🌗</button>
+                    <a href="https://github.com/yourusername/curlcard" target="_blank" class="github-btn" title="Star on GitHub">⭐</a>
+                </div>
+            </div>
+        </header>
 
-        <!-- 🪞 Preview will show here -->
-        <div id="preview-card" class="card hidden"></div>
+        <main class="main">
+            <!-- INPUT SECTION -->
+            <section class="input-section">
+                <div class="input-container">
+                    <input type="url" id="url-input" placeholder="https://example.com/article..." />
+                    <button id="curl-btn">
+                        <span class="btn-text">Curl It</span>
+                        <span class="btn-spinner hidden">🌀</span>
+                    </button>
+                </div>
+                <div id="status" class="status hidden"></div>
+            </section>
+
+            <!-- PREVIEW CARD -->
+            <section id="preview-section" class="preview-section hidden">
+                <div id="preview-card" class="preview-card card"></div>
+            </section>
+
+            <!-- FULL READER -->
+            <section id="reader-section" class="reader-section hidden">
+                <div class="reader-container">
+                    <div class="reader-header">
+                        <button id="back-to-preview" class="back-btn" title="Back to Preview">← Back</button>
+                        <div class="reader-meta">
+                            <h1 id="reader-title"></h1>
+                            <div class="reader-site">
+                                <span id="reader-site"></span>
+                                <a id="reader-url" class="original-link" target="_blank">🔗 Open Original</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="reader-content" class="reader-content"></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-main">
+                    <div class="footer-about">
+                        <h3>Made by <a href="https://linktr.ee/oldserj" target="_blank">OldSerj</a></h3>
+                        <p>Instant page reading. No tracking. Client-side only.</p>
+                    </div>
+                    <div class="footer-links">
+                        <a href="mailto:sergiugeorgebatrin@gmail.com" class="contact-link">📧 sergiugeorgebatrin@gmail.com</a>
+                        <a href="https://github.com/OldSerj" target="_blank" class="contact-link">🐙 GitHub</a>
+                        <a href="https://www.instagram.com/sergiubatrin__" target="_blank" class="contact-link">📷 Instagram</a>
+                        <a href="https://www.linkedin.com/in/sergiu-batrin-ba56702a8" target="_blank" class="contact-link">💼 LinkedIn</a>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <span>🔓 Open Source • <a href="https://github.com/OldSerj/Curl_Card/blob/online/LICENSE" target="_blank">MIT License</a></span>
+                </div>
+            </div>
+        </footer>
     </div>
 
     <script src="script.js"></script>

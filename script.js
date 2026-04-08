@@ -1,21 +1,26 @@
-class CurlCard {
+class UltimateCurlCard {
     constructor() {
         this.initElements();
         this.bindEvents();
         this.darkMode = localStorage.getItem('curlcard-dark') === 'true';
         this.updateTheme();
+        this.currentData = null;
     }
 
     initElements() {
         this.urlInput = document.getElementById('url-input');
         this.curlBtn = document.getElementById('curl-btn');
+        this.btnText = document.querySelector('.btn-text');
+        this.btnSpinner = document.querySelector('.btn-spinner');
+        this.previewSection = document.getElementById('preview-section');
+        this.readerSection = document.getElementById('reader-section');
         this.previewCard = document.getElementById('preview-card');
-        this.reader = document.getElementById('reader');
         this.status = document.getElementById('status');
         this.toggleDark = document.getElementById('toggle-dark');
         this.backBtn = document.getElementById('back-to-preview');
         this.readerTitle = document.getElementById('reader-title');
         this.readerSite = document.getElementById('reader-site');
+        this.readerUrl = document.getElementById('reader-url');
         this.readerContent = document.getElementById('reader-content');
     }
 
@@ -31,200 +36,256 @@ class CurlCard {
     async curl() {
         const url = this.urlInput.value.trim();
         if (!this.isValidUrl(url)) {
-            this.showStatus('Enter a valid URL, netrunner.', 'error');
+            this.showStatus('Enter a valid URL', 'error');
             return;
         }
 
-        this.showPreview('Fetching full page... 🌀');
-        this.curlBtn.disabled = true;
-        this.curlBtn.textContent = 'Curling...';
+        this.setLoading(true);
+        this.showPreview('🔍 Fetching page metadata...');
+        this.hideStatus();
 
         try {
-            const data = await this.fetchPage(url);
+            let data;
+            
+            // Try client-side first
+            try {
+                data = await this.fetchPageClient(url);
+            } catch (clientError) {
+                console.log('Client fetch failed, trying online fallback:', clientError.message);
+                data = await this.fetchPageOnline(url);
+            }
+
             this.displayPreview(data);
             this.currentData = data;
         } catch (error) {
-            this.showPreview(`Error: ${error.message}`);
-            console.error('Curl failed:', error);
+            this.showPreview(`❌ Failed to load: ${error.message}`);
+            console.error('Ultimate curl failed:', error);
         } finally {
-            this.curlBtn.disabled = false;
-            this.curlBtn.textContent = 'Curl It';
+            this.setLoading(false);
         }
     }
 
     isValidUrl(string) {
         try {
-            new URL(string.startsWith('http') ? string : 'https://' + string);
+            new URL(string.startsWith('http') ? string : `https://${string}`);
             return true;
         } catch {
             return false;
         }
     }
 
-    async fetchPage(url) {
+    async fetchPageClient(url) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
 
         try {
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (CurlCard/2.0)',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.5',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'none',
+                    'Sec-Fetch-Dest': 'document',
                 },
                 signal: controller.signal,
                 cache: 'no-cache',
                 mode: 'cors',
+                referrerPolicy: 'no-referrer-when-downgrade',
             });
 
-            clearTimeout(timeout);
-
+            clearTimeout(timeoutId);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            
+
             const html = await response.text();
-            return this.extractContent(html, url);
+            return this.extractUltimateContent(html, url);
         } catch (error) {
-            if (error.name === 'AbortError') throw new Error('Request timeout (15s)');
+            if (error.name === 'AbortError') throw new Error('Timeout (12s)');
             throw error;
         }
     }
 
-    extractContent(html, url) {
+    async fetchPageOnline(url) {
+        // Online fallback proxy (CORS anywhere or similar)
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl, { cache: 'no-cache' });
+        if (!response.ok) throw new Error('Online proxy failed');
+        
+        const html = await response.text();
+        return this.extractUltimateContent(html, url);
+    }
+
+    extractUltimateContent(html, url) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const baseUrl = new URL(url).origin;
 
-        // Extract metadata
-        const title = this.getMeta(doc, ['og:title', 'twitter:title'], doc.title || 'No title');
-        const description = this.getMeta(doc, ['og:description', 'twitter:description', 'description']) || '';
-        const image = this.getMeta(doc, ['og:image', 'twitter:image']) || '';
+        // Ultimate metadata extraction
+        const title = this.getMeta(doc, [
+            'og:title', 'twitter:title', 'title'
+        ], doc.title?.trim() || 'Untitled');
 
-        // Extract full readable content
-        let content = this.getReadableContent(doc);
+        const description = this.getMeta(doc, [
+            'og:description', 'twitter:description', 'description'
+        ], '').slice(0, 200);
+
+        const image = this.getMeta(doc, [
+            'og:image', 'twitter:image:src', 'twitter:image'
+        ], '');
+
+        // ULTIMATE content extraction
+        let content = this.getUltimateReadableContent(doc, baseUrl);
         
-        // Fix relative URLs
-        content = content.replace(/src=["']\/([^\/])/g, `src="${baseUrl}/$1`);
-        content = content.replace(/href=["']\/([^\/])/g, `href="${baseUrl}/$1`);
-        content = content.replace(/url\$["']\/([^\/])/g, `url("${baseUrl}/$1`);
+        // Fix ALL relative URLs
+        content = this.fixRelativeUrls(content, baseUrl);
 
         return {
-            title,
-            description: description.slice(0, 160) + '...',
+            title: title.replace(/\s+/g, ' ').trim(),
+            description: description || 'No description available',
             image,
-            site: new URL(url).hostname,
+            site: new URL(url).hostname.replace('www.', ''),
             url,
             content,
-            rawHtml: html.slice(0, 50000) // Limit for preview
+            wordCount: content.split(/\s+/).length
         };
     }
 
     getMeta(doc, properties, fallback = '') {
         for (const prop of properties) {
             const meta = doc.querySelector(`meta[property="${prop}"], meta[name="${prop}"]`);
-            if (meta?.content) return meta.content;
+            if (meta?.content?.trim()) return meta.content.trim();
         }
         return fallback;
     }
 
-    getReadableContent(doc) {
-        // Try article, main, or content containers first
-        const selectors = [
+    getUltimateReadableContent(doc, baseUrl) {
+        const readers = [
             'article',
-            'main',
-            '[role="main"]',
-            '.content',
-            '.post-content',
-            '.article-body',
-            '.entry-content'
+            'main', '[role="main"]',
+            '.content', '.post-content', '.article-body', '.entry-content',
+            '.post', '.story', '.prose', '[data-testid="post"]',
+            '.markdown-body', '.md-content'
         ];
 
         let container = null;
-        for (const selector of selectors) {
+        for (const selector of readers) {
             container = doc.querySelector(selector);
-            if (container) break;
+            if (container && container.children.length > 1) break;
         }
 
-        if (!container) container = doc.body;
+        container = container || doc.body;
 
-        // Clean up and extract text + media
-        const walker = doc.createTreeWalker(
-            container,
-            NodeFilter.SHOW_ELEMENT,
-            {
-                acceptNode: (node) => {
-                    if (['SCRIPT', 'STYLE', 'NOSCRIPT', 'NAV', 'HEADER', 'FOOTER', 'ASIDE'].includes(node.tagName)) {
-                        return NodeFilter.FILTER_REJECT;
-                    }
-                    return NodeFilter.FILTER_ACCEPT;
-                }
-            }
-        );
+        // Remove junk
+        ['script', 'style', 'nav', 'header', 'footer', 'aside', 'nav'].forEach(tag => {
+            container.querySelectorAll(tag).forEach(el => el.remove());
+        });
 
+        // Extract clean content
         let content = '';
-        let node;
-        while (node = walker.nextNode()) {
-            if (node.tagName === 'IMG' && node.src) {
-                content += `<img src="${node.src}" alt="${node.alt || ''}" style="max-width:100%;height:auto;">`;
-            } else if (['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'BLOCKQUOTE'].includes(node.tagName)) {
-                content += node.outerHTML;
+        const elements = container.querySelectorAll('h1,h2,h3,h4,h5,h6,p,ul,ol,li,blockquote,figure,img,pre,table');
+        
+        elements.forEach(el => {
+            if (el.tagName === 'IMG' && el.src) {
+                content += `<img src="${el.src}" alt="${el.alt || ''}" loading="lazy" style="max-width:100%;height:auto;border-radius:8px;margin:1rem 0;">`;
+            } else if (['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'TABLE'].includes(el.tagName)) {
+                content += el.outerHTML;
             }
-        }
+        });
 
-        return content || '<p>No readable content found.</p>';
+        return content || '<p>🕵️ No readable content detected. Try a different URL!</p>';
+    }
+
+    fixRelativeUrls(content, baseUrl) {
+        return content
+            .replace(/src=(['"])\/([^\/])/g, `src=$1${baseUrl}/$2`)
+            .replace(/href=(['"])\/([^\/])/g, `href=$1${baseUrl}/$2`)
+            .replace(/url\$['"]\/([^\/])/g, `url('${baseUrl}/$1`)
+            .replace(/url\$[""]\/([^\/])/g, `url("${baseUrl}/$1`);
     }
 
     displayPreview(data) {
         this.previewCard.innerHTML = `
-            ${data.image ? `<img src="${data.image}" alt="Preview" class="preview-img" onerror="this.style.display='none'">` : ''}
-            <h2>${data.title}</h2>
-            <p>${data.description}</p>
-            <div class="actions">
-                <button id="read-full" class="read-btn">Read Full Article →</button>
+            ${data.image ? `<img src="${data.image}" alt="${data.title}" class="preview-image" onerror="this.style.display='none'">` : ''}
+            <div class="preview-meta">
+                <h2 class="preview-title">${this.escapeHtml(data.title)}</h2>
+                <p class="preview-desc">${this.escapeHtml(data.description)}</p>
+                <div class="preview-stats">
+                    <span>📖 ${data.wordCount} words</span>
+                    <span>🌐 ${data.site}</span>
+                </div>
             </div>
-            <span class="site-label">${data.site}</span>
+            <div class="preview-actions">
+                <button id="read-full" class="read-full-btn">📖 Read Full Article</button>
+            </div>
         `;
-        
-        document.getElementById('read-full')?.addEventListener('click', () => this.showReader(data));
-        this.previewCard.classList.remove('hidden');
-        this.reader.classList.add('hidden');
+
+        document.getElementById('read-full').addEventListener('click', () => this.showReader(data));
+        this.previewSection.classList.remove('hidden');
+        this.readerSection.classList.add('hidden');
     }
 
     showReader(data) {
         this.readerTitle.textContent = data.title;
         this.readerSite.textContent = data.site;
+        this.readerUrl.href = data.url;
+        this.readerUrl.textContent = new URL(data.url).hostname;
         this.readerContent.innerHTML = data.content;
-        this.reader.classList.remove('hidden');
-        this.previewCard.classList.add('hidden');
+        
+        this.readerSection.scrollIntoView({ behavior: 'smooth' });
+        this.readerSection.classList.remove('hidden');
+        this.previewSection.classList.add('hidden');
     }
 
-    showPreview(content = '') {
-        this.reader.classList.add('hidden');
-        this.previewCard.classList.remove('hidden');
-        this.previewCard.innerHTML = `<div class="loading">${content}</div>`;
+    showPreview(content = 'Ready to curl...') {
+        this.readerSection.classList.add('hidden');
+        this.previewSection.classList.remove('hidden');
+        this.previewCard.innerHTML = `<div class="loading-state">${content}</div>`;
+    }
+
+    setLoading(loading) {
+        this.curlBtn.disabled = loading;
+        this.btnSpinner.classList.toggle('hidden', !loading);
+        this.btnText.textContent = loading ? 'Curling...' : 'Curl It';
     }
 
     showStatus(message, type = 'info') {
         this.status.textContent = message;
-        this.status.className = `status ${type}`;
-        this.status.classList.remove('hidden');
-        setTimeout(() => this.status.classList.add('hidden'), 3000);
+        this.status.className = `status ${type} show`;
+        setTimeout(() => this.status.classList.remove('show'), 4000);
+    }
+
+    hideStatus() {
+        this.status.classList.remove('show');
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     toggleDarkMode() {
         this.darkMode = !this.darkMode;
         localStorage.setItem('curlcard-dark', this.darkMode);
-        this.updateTheme();
-    }
-
-    updateTheme() {
         document.body.classList.toggle('dark', this.darkMode);
         this.toggleDark.textContent = this.darkMode ? '☀️' : '🌗';
     }
 }
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => new CurlCard());
+// 🔥 Initialize Ultimate CurlCard
+document.addEventListener('DOMContentLoaded', () => {
+    new UltimateCurlCard();
+    
+    // PWA-like welcome
+    if (!localStorage.getItem('curlcard-welcome')) {
+        setTimeout(() => {
+            const welcome = document.createElement('div');
+            welcome.className = 'welcome-toast';
+            welcome.innerHTML = '🎉 Welcome to CurlCard! Enter any URL and hit Enter or click Curl It.';
+            document.body.appendChild(welcome);
+            setTimeout(() => welcome.remove(), 4000);
+            localStorage.setItem('curlcard-welcome', 'true');
+        }, 500);
+    }
+});

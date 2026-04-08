@@ -1,4 +1,4 @@
-class UltimateCurlCard {
+class CorsProofCurlCard {
     constructor() {
         this.initElements();
         this.bindEvents();
@@ -26,9 +26,7 @@ class UltimateCurlCard {
 
     bindEvents() {
         this.curlBtn.addEventListener('click', () => this.curl());
-        this.urlInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.curl();
-        });
+        this.urlInput.addEventListener('keypress', (e) => e.key === 'Enter' && this.curl());
         this.toggleDark.addEventListener('click', () => this.toggleDarkMode());
         this.backBtn.addEventListener('click', () => this.showPreview());
     }
@@ -41,25 +39,16 @@ class UltimateCurlCard {
         }
 
         this.setLoading(true);
-        this.showPreview('🔍 Fetching page metadata...');
+        this.showPreview('🔍 Analyzing CORS strategy...');
         this.hideStatus();
 
         try {
-            let data;
-            
-            // Try client-side first
-            try {
-                data = await this.fetchPageClient(url);
-            } catch (clientError) {
-                console.log('Client fetch failed, trying online fallback:', clientError.message);
-                data = await this.fetchPageOnline(url);
-            }
-
+            const data = await this.corsProofFetch(url);
             this.displayPreview(data);
             this.currentData = data;
         } catch (error) {
-            this.showPreview(`❌ Failed to load: ${error.message}`);
-            console.error('Ultimate curl failed:', error);
+            this.showPreview(`❌ ${error.message}`);
+            console.error('Curl failed:', error);
         } finally {
             this.setLoading(false);
         }
@@ -74,170 +63,155 @@ class UltimateCurlCard {
         }
     }
 
-    async fetchPageClient(url) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 12000);
-
+    async corsProofFetch(url) {
+        // STRATEGY 1: Direct fetch (works ~60% of sites)
         try {
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.9',
-                    'Sec-Fetch-Mode': 'navigate',
-                    'Sec-Fetch-Site': 'none',
-                    'Sec-Fetch-Dest': 'document',
-                },
-                signal: controller.signal,
-                cache: 'no-cache',
-                mode: 'cors',
-                referrerPolicy: 'no-referrer-when-downgrade',
-            });
+            return await this.fetchDirect(url);
+        } catch (e1) {
+            console.log('Direct failed:', e1.message);
+        }
 
-            clearTimeout(timeoutId);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        // STRATEGY 2: CORS proxy #1 (allorigins.win - most reliable)
+        try {
+            return await this.fetchProxy1(url);
+        } catch (e2) {
+            console.log('Proxy1 failed:', e2.message);
+        }
 
-            const html = await response.text();
-            return this.extractUltimateContent(html, url);
-        } catch (error) {
-            if (error.name === 'AbortError') throw new Error('Timeout (12s)');
-            throw error;
+        // STRATEGY 3: CORS proxy #2 (corsproxy.io)
+        try {
+            return await this.fetchProxy2(url);
+        } catch (e3) {
+            console.log('Proxy2 failed:', e3.message);
+        }
+
+        // STRATEGY 4: Archive fallback
+        try {
+            return await this.fetchArchive(url);
+        } catch (e4) {
+            throw new Error('All strategies failed 😢 Try a different URL');
         }
     }
 
-    async fetchPageOnline(url) {
-        // Online fallback proxy (CORS anywhere or similar)
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl, { cache: 'no-cache' });
-        if (!response.ok) throw new Error('Online proxy failed');
+    async fetchDirect(url) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch(url, {
+            signal: controller.signal,
+            cache: 'no-cache',
+            mode: 'cors',
+            referrerPolicy: 'no-referrer'
+        });
+
+        clearTimeout(timeout);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const html = await response.text();
-        return this.extractUltimateContent(html, url);
+        return this.extractContent(html, url);
     }
 
-    extractUltimateContent(html, url) {
+    async fetchProxy1(url) {
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl, { cache: 'no-cache' });
+        if (!response.ok) throw new Error('Proxy unavailable');
+        const html = await response.text();
+        return this.extractContent(html, url);
+    }
+
+    async fetchProxy2(url) {
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl, { cache: 'no-cache' });
+        if (!response.ok) throw new Error('Proxy unavailable');
+        const html = await response.text();
+        return this.extractContent(html, url);
+    }
+
+    async fetchArchive(url) {
+        const cleanUrl = url.replace(/https?:\/\//, '').replace(/\/.*/, '');
+        const archiveUrl = `https://web.archive.org/cdx/search/cdx?url=${cleanUrl}/*&limit=1&output=json`;
+        const response = await fetch(archiveUrl);
+        const data = await response.json();
+        if (data.length > 1) {
+            const archived = `https://web.archive.org${data[1].slice(1).join('/')}`;
+            const archiveResponse = await fetch(archived);
+            const html = await archiveResponse.text();
+            return this.extractContent(html, archived);
+        }
+        throw new Error('No archive found');
+    }
+
+    extractContent(html, url) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        const baseUrl = new URL(url).origin;
-
-        // Ultimate metadata extraction
-        const title = this.getMeta(doc, [
-            'og:title', 'twitter:title', 'title'
-        ], doc.title?.trim() || 'Untitled');
-
-        const description = this.getMeta(doc, [
-            'og:description', 'twitter:description', 'description'
-        ], '').slice(0, 200);
-
-        const image = this.getMeta(doc, [
-            'og:image', 'twitter:image:src', 'twitter:image'
-        ], '');
-
-        // ULTIMATE content extraction
-        let content = this.getUltimateReadableContent(doc, baseUrl);
         
-        // Fix ALL relative URLs
-        content = this.fixRelativeUrls(content, baseUrl);
+        const title = doc.title?.trim() || 
+                     doc.querySelector('h1')?.textContent?.trim() || 
+                     'Untitled Page';
+
+        const description = Array.from(doc.querySelectorAll('meta[property="og:description"], meta[name="description"]'))
+            .map(meta => meta.content)
+            .find(Boolean) || '';
+
+        const image = Array.from(doc.querySelectorAll('meta[property="og:image"], meta[property="twitter:image"]'))
+            .map(meta => meta.content)
+            .find(Boolean) || '';
+
+        // Extract MAIN content
+        const main = doc.querySelector('main, article, [role="main"], .content, .post, .article') || doc.body;
+        
+        // Clean content
+        ['script', 'style', 'nav', 'header', 'footer'].forEach(tag => {
+            main.querySelectorAll(tag).forEach(el => el.remove());
+        });
+
+        const content = main.innerHTML
+            .replace(/<img([^>]+)>/g, (match) => {
+                const src = match.match(/src=["']([^"']+)["']/)[1];
+                return `<img src="${src}" style="max-width:100%;height:auto;border-radius:12px;margin:1rem 0;" loading="lazy">`;
+            })
+            .slice(0, 50000); // Limit size
 
         return {
-            title: title.replace(/\s+/g, ' ').trim(),
-            description: description || 'No description available',
+            title: title.slice(0, 100),
+            description: description.slice(0, 160),
             image,
             site: new URL(url).hostname.replace('www.', ''),
             url,
             content,
-            wordCount: content.split(/\s+/).length
+            strategy: 'success'
         };
-    }
-
-    getMeta(doc, properties, fallback = '') {
-        for (const prop of properties) {
-            const meta = doc.querySelector(`meta[property="${prop}"], meta[name="${prop}"]`);
-            if (meta?.content?.trim()) return meta.content.trim();
-        }
-        return fallback;
-    }
-
-    getUltimateReadableContent(doc, baseUrl) {
-        const readers = [
-            'article',
-            'main', '[role="main"]',
-            '.content', '.post-content', '.article-body', '.entry-content',
-            '.post', '.story', '.prose', '[data-testid="post"]',
-            '.markdown-body', '.md-content'
-        ];
-
-        let container = null;
-        for (const selector of readers) {
-            container = doc.querySelector(selector);
-            if (container && container.children.length > 1) break;
-        }
-
-        container = container || doc.body;
-
-        // Remove junk
-        ['script', 'style', 'nav', 'header', 'footer', 'aside', 'nav'].forEach(tag => {
-            container.querySelectorAll(tag).forEach(el => el.remove());
-        });
-
-        // Extract clean content
-        let content = '';
-        const elements = container.querySelectorAll('h1,h2,h3,h4,h5,h6,p,ul,ol,li,blockquote,figure,img,pre,table');
-        
-        elements.forEach(el => {
-            if (el.tagName === 'IMG' && el.src) {
-                content += `<img src="${el.src}" alt="${el.alt || ''}" loading="lazy" style="max-width:100%;height:auto;border-radius:8px;margin:1rem 0;">`;
-            } else if (['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'TABLE'].includes(el.tagName)) {
-                content += el.outerHTML;
-            }
-        });
-
-        return content || '<p>🕵️ No readable content detected. Try a different URL!</p>';
-    }
-
-    fixRelativeUrls(content, baseUrl) {
-        return content
-            .replace(/src=(['"])\/([^\/])/g, `src=$1${baseUrl}/$2`)
-            .replace(/href=(['"])\/([^\/])/g, `href=$1${baseUrl}/$2`)
-            .replace(/url\$['"]\/([^\/])/g, `url('${baseUrl}/$1`)
-            .replace(/url\$[""]\/([^\/])/g, `url("${baseUrl}/$1`);
     }
 
     displayPreview(data) {
         this.previewCard.innerHTML = `
-            ${data.image ? `<img src="${data.image}" alt="${data.title}" class="preview-image" onerror="this.style.display='none'">` : ''}
             <div class="preview-meta">
                 <h2 class="preview-title">${this.escapeHtml(data.title)}</h2>
                 <p class="preview-desc">${this.escapeHtml(data.description)}</p>
                 <div class="preview-stats">
-                    <span>📖 ${data.wordCount} words</span>
                     <span>🌐 ${data.site}</span>
                 </div>
             </div>
             <div class="preview-actions">
-                <button id="read-full" class="read-full-btn">📖 Read Full Article</button>
+                <button id="read-full" class="read-full-btn">📖 Read Full Page</button>
             </div>
         `;
 
-        document.getElementById('read-full').addEventListener('click', () => this.showReader(data));
+        document.getElementById('read-full').onclick = () => this.showReader(data);
         this.previewSection.classList.remove('hidden');
-        this.readerSection.classList.add('hidden');
     }
 
     showReader(data) {
         this.readerTitle.textContent = data.title;
         this.readerSite.textContent = data.site;
         this.readerUrl.href = data.url;
-        this.readerUrl.textContent = new URL(data.url).hostname;
         this.readerContent.innerHTML = data.content;
-        
-        this.readerSection.scrollIntoView({ behavior: 'smooth' });
         this.readerSection.classList.remove('hidden');
         this.previewSection.classList.add('hidden');
+        this.readerSection.scrollIntoView({ behavior: 'smooth' });
     }
 
-    showPreview(content = 'Ready to curl...') {
+    showPreview(content = 'Ready!') {
         this.readerSection.classList.add('hidden');
         this.previewSection.classList.remove('hidden');
         this.previewCard.innerHTML = `<div class="loading-state">${content}</div>`;
@@ -246,13 +220,13 @@ class UltimateCurlCard {
     setLoading(loading) {
         this.curlBtn.disabled = loading;
         this.btnSpinner.classList.toggle('hidden', !loading);
-        this.btnText.textContent = loading ? 'Curling...' : 'Curl It';
+        this.btnText.textContent = loading ? 'Loading...' : 'Curl It';
     }
 
-    showStatus(message, type = 'info') {
-        this.status.textContent = message;
+    showStatus(msg, type = 'info') {
+        this.status.textContent = msg;
         this.status.className = `status ${type} show`;
-        setTimeout(() => this.status.classList.remove('show'), 4000);
+        setTimeout(() => this.status.classList.remove('show'), 5000);
     }
 
     hideStatus() {
@@ -260,9 +234,8 @@ class UltimateCurlCard {
     }
 
     escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.replace(/[&<>"']/g, m => map[m]);
     }
 
     toggleDarkMode() {
@@ -273,19 +246,4 @@ class UltimateCurlCard {
     }
 }
 
-// 🔥 Initialize Ultimate CurlCard
-document.addEventListener('DOMContentLoaded', () => {
-    new UltimateCurlCard();
-    
-    // PWA-like welcome
-    if (!localStorage.getItem('curlcard-welcome')) {
-        setTimeout(() => {
-            const welcome = document.createElement('div');
-            welcome.className = 'welcome-toast';
-            welcome.innerHTML = '🎉 Welcome to CurlCard! Enter any URL and hit Enter or click Curl It.';
-            document.body.appendChild(welcome);
-            setTimeout(() => welcome.remove(), 4000);
-            localStorage.setItem('curlcard-welcome', 'true');
-        }, 500);
-    }
-});
+document.addEventListener('DOMContentLoaded', () => new CorsProofCurlCard());

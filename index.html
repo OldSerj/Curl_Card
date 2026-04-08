@@ -5,30 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🔗 CurlCard - Ultimate Page Reader</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔗</text></svg>">
-    <meta name="description" content="Instantly read any webpage. Full articles, no cookies, client-side only.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="app">
-        <!-- HEADER -->
         <header class="header">
             <div class="header-content">
                 <div class="logo">
                     <h1>🔗 CurlCard</h1>
-                    <span class="tagline">Ultimate Page Reader</span>
+                    <span class="tagline">CORS-Proof Page Reader</span>
                 </div>
                 <div class="header-actions">
-                    <button id="toggle-dark" title="Toggle Dark Mode">🌗</button>
-                    <a href="https://github.com/yourusername/curlcard" target="_blank" class="github-btn" title="Star on GitHub">⭐</a>
+                    <button id="toggle-dark" class="toggle-dark" title="Toggle Dark Mode">🌗</button>
+                    <a href="https://github.com/OldSerj/Curl_Card" target="_blank" class="github-btn" title="Star on GitHub">⭐</a>
                 </div>
             </div>
         </header>
 
         <main class="main">
-            <!-- INPUT SECTION -->
             <section class="input-section">
                 <div class="input-container">
-                    <input type="url" id="url-input" placeholder="https://example.com/article..." />
+                    <input type="url" id="url-input" placeholder="Paste any URL (works everywhere!)" />
                     <button id="curl-btn">
                         <span class="btn-text">Curl It</span>
                         <span class="btn-spinner hidden">🌀</span>
@@ -37,16 +34,14 @@
                 <div id="status" class="status hidden"></div>
             </section>
 
-            <!-- PREVIEW CARD -->
             <section id="preview-section" class="preview-section hidden">
                 <div id="preview-card" class="preview-card card"></div>
             </section>
 
-            <!-- FULL READER -->
             <section id="reader-section" class="reader-section hidden">
                 <div class="reader-container">
                     <div class="reader-header">
-                        <button id="back-to-preview" class="back-btn" title="Back to Preview">← Back</button>
+                        <button id="back-to-preview" class="back-btn">← Back</button>
                         <div class="reader-meta">
                             <h1 id="reader-title"></h1>
                             <div class="reader-site">
@@ -60,7 +55,6 @@
             </section>
         </main>
 
-        <!-- FOOTER -->
         <footer class="footer">
             <div class="footer-content">
                 <div class="footer-main">
@@ -85,3 +79,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+

@@ -19,33 +19,6 @@ It also serves a small frontend (`index.html`, CSS, JS) so you can paste in a UR
 Because there should be a safe, local way to preview external URLs without leaking anything to third-party APIs.  
 Also, maybe you don’t want to give your cookies to sites that aren't worth it.
 
-## 🚀 Usage
-
-1. **Clone this repo**  
-   ```bash
-   git clone https://github.com/yourname/curl-card.git
-   cd curl-card
-   ```
-2. **Install dependencies**
-
-You only need this one:
-
-   ```bash
-   pip install requests beautifulsoup4
-   ```
-
-3. **Run Curl_Card.sh**
-
-It will open your browser at http://localhost:8000
-
-4. **Paste a URL into the field and hit Curl.**
-
-## 🛠 Tech Stack
-- http.server
-- requests
-- BeautifulSoup
-- Static files frontend
-
 ## 📁 File Structure
    ```pgsql
    Curl_Card/

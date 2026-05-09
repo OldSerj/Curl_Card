@@ -111,7 +111,6 @@ def fetch_metadata(url):
                 return tag['content']
         return None
 
-    # New content extraction logic (basic text from main or article tag)
     article = soup.find('article') or soup.find('main')
     paragraphs = []
     if article:
@@ -125,7 +124,7 @@ def fetch_metadata(url):
             if text:
                 paragraphs.append(text)
 
-    content = '\n\n'.join(paragraphs[:5])  # Just the first 5 paragraphs, to keep it short
+    content = '\n\n'.join(paragraphs[:5])
 
     return {
         'title': get_meta('og:title') or (soup.title.string if soup.title else ''),

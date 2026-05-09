@@ -41,7 +41,6 @@ document.getElementById("curl-btn").addEventListener("click", async () => {
     }
 });
 
-// 🌗 Simple dark mode toggle — this assumes dark mode CSS is done
 document.getElementById("toggle-dark").addEventListener("click", () => {
     document.body.classList.toggle("dark");
 });
